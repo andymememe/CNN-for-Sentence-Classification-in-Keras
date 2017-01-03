@@ -1,10 +1,12 @@
 import numpy as np
+import pandas as pd
 import re
 import itertools
 from collections import Counter
 """
 Original taken from https://github.com/dennybritz/cnn-text-classification-tf
 """
+
 
 def clean_str(string):
     """
@@ -27,24 +29,18 @@ def clean_str(string):
     return string.strip().lower()
 
 
-def load_data_and_labels():
+def load_data_and_labels(dataset_name):
     """
     Loads MR polarity data from files, splits the data into words and generates labels.
     Returns split sentences and labels.
     """
     # Load data from files
-    positive_examples = list(open("./data/rt-polarity.pos").readlines())
-    positive_examples = [s.strip() for s in positive_examples]
-    negative_examples = list(open("./data/rt-polarity.neg").readlines())
-    negative_examples = [s.strip() for s in negative_examples]
-    # Split by words
-    x_text = positive_examples + negative_examples
+    data = pd.read_csv('data/' + dataset_name + '-data.txt', sep='\t', header=0)
+    x_text = data['sentence'].tolist()
+    y = data['label'].tolist()
     x_text = [clean_str(sent) for sent in x_text]
     x_text = [s.split(" ") for s in x_text]
     # Generate labels
-    positive_labels = [[0, 1] for _ in positive_examples]
-    negative_labels = [[1, 0] for _ in negative_examples]
-    y = np.concatenate([positive_labels, negative_labels], 0)
     return [x_text, y]
 
 
@@ -81,18 +77,19 @@ def build_input_data(sentences, labels, vocabulary):
     """
     Maps sentencs and labels to vectors based on a vocabulary.
     """
-    x = np.array([[vocabulary[word] for word in sentence] for sentence in sentences])
+    x = np.array([[vocabulary[word] for word in sentence]
+                  for sentence in sentences])
     y = np.array(labels)
     return [x, y]
 
 
-def load_data():
+def load_data(dataset_name):
     """
     Loads and preprocessed data for the MR dataset.
     Returns input vectors, labels, vocabulary, and inverse vocabulary.
     """
     # Load and preprocess data
-    sentences, labels = load_data_and_labels()
+    sentences, labels = load_data_and_labels(dataset_name)
     sentences_padded = pad_sentences(sentences)
     vocabulary, vocabulary_inv = build_vocab(sentences_padded)
     x, y = build_input_data(sentences_padded, labels, vocabulary)
@@ -105,7 +102,7 @@ def batch_iter(data, batch_size, num_epochs):
     """
     data = np.array(data)
     data_size = len(data)
-    num_batches_per_epoch = int(len(data)/batch_size) + 1
+    num_batches_per_epoch = int(len(data) / batch_size) + 1
     for epoch in range(num_epochs):
         # Shuffle the data at each epoch
         shuffle_indices = np.random.permutation(np.arange(data_size))
