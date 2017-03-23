@@ -47,10 +47,13 @@ import data_helpers
 from w2v import train_word2vec
 
 from keras.models import Sequential, Model
-from keras.layers import Activation, Dense, Dropout, Embedding, Flatten, Input, Merge, Convolution1D, MaxPooling1D
+from keras.layers import Activation, Dense, Dropout, Embedding, Flatten, Input
+from keras.layers.merge import concatenate
+from keras.layers.convolutional import Conv1D
+from keras.layers.pooling import MaxPooling1D
 from keras.utils.np_utils import to_categorical
 from keras.constraints import maxnorm
-from keras.utils.visualize_util import plot
+# from keras.utils import plot_model
 
 np.random.seed(2)
 
@@ -151,23 +154,23 @@ print(("Vocabulary Size: {:d}".format(len(vocabulary))))
 graph_in = Input(shape=(sequence_length, embedding_dim))
 convs = []
 for fsz in filter_sizes:
-    conv = Convolution1D(nb_filter=num_filters,
-                         filter_length=fsz,
-                         border_mode='valid',
-                         activation='relu',
-                         subsample_length=1)(graph_in)
-    pool = MaxPooling1D(pool_length=2)(conv)
+    conv = Conv1D(filters=num_filters,
+                  kernel_size=fsz,
+                  padding='valid',
+                  activation='relu',
+                  strides=1)(graph_in)
+    pool = MaxPooling1D(pool_size=2)(conv)
     flatten = Flatten()(pool)
     convs.append(flatten)
 
 if len(filter_sizes) > 1:
-    out = Merge(mode='concat')(convs)
+    out = concatenate(convs)
 else:
     out = convs[0]
 
-graph = Model(input=graph_in, output=out)
-plot(graph, to_file='result/Result/' +
-     model_variation + '-' + now_date + '-CNN.png')
+graph = Model(inputs=graph_in, outputs=out)
+# plot_model(graph, to_file='result/Result/' +
+#      model_variation + '-' + now_date + '-CNN.png')
 
 # main sequential model
 model = Sequential()
@@ -184,13 +187,13 @@ model.add(Dense(label_num))
 model.add(Activation(act_2))
 model.compile(loss=loss_function,
               optimizer='rmsprop', metrics=['accuracy'])
-plot(model, to_file='result/Result/' + model_variation + '-' + now_date + '.png')
+# plot_model(model, to_file='result/Result/' + model_variation + '-' + now_date + '.png')
 
 # Training model
 # ==================================================
 if args.datsets[0] == 'mr':
     model.fit(x_shuffled, y_shuffled, batch_size=batch_size,
-              nb_epoch=num_epochs, validation_split=val_split, verbose=2)
+              epochs=num_epochs, validation_split=val_split, verbose=2)
 else:
     model.fit(x_tr, y_tr, batch_size=batch_size,
               nb_epoch=num_epochs, validation_data=(x_vl, y_vl), verbose=2)
